@@ -1,0 +1,21 @@
+# .gitignore
+
+# Python compilation files
+__pycache__/
+*.py[cod]
+
+# Virtual Environment
+.venv/
+venv/
+env/
+
+# Datasets (CRITICAL: Do not upload these)
+data/
+*.pth
+*.pt
+
+# VS Code settings
+.vscode/
+
+# Mac system files
+.DS_Store
