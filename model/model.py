@@ -64,11 +64,13 @@ class Attention(nn.Module):
         dp = (
         q @ k_t
         ) * self.scale
-        attn = dp.softmax(dim=1)
+        attn = dp.softmax(dim=-1)
 
         weighted_avg = attn @ v
-        weighted_avtg = weighted_avg.transpose(1,2)
+        weighted_avg = weighted_avg.transpose(1,2)
         weighted_avg = weighted_avg.flatten(2)
+
+        x = self.proj(weighted_avg)
         x = self.proj_drop(x)
 
         return x

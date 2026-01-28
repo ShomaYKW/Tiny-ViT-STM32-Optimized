@@ -4,7 +4,7 @@ from train.train import run_training
 from dataloader.CIFAR10 import get_CIFAR10_loaders
 from dataloader.VWW import get_mvtec_loaders
 from model.model import ViT
-
+from debug.debug import debug_single_batch
 
 custom_config_CIFAR10 = {
     "img_size" : 32,
@@ -30,32 +30,19 @@ costom_config_MVTec = {
 }
 
 
-if __name__ =="__main__":
-
+if __name__=="__main__":
     device = torch.device("cuda" if torch.cuda.is_available else "cpu")
     print(f"using: {device}")
 
     train_loader_CIFAR10, test_loader_CIFAR10 = get_CIFAR10_loaders(batch_size=128)
-    train_loader_VWW, test_loader_VWW = get_mvtec_loaders(
-        root='/home/sxy901/ViT_P2/data/mvtec_anomaly_detection',
+
+    """train_loader_VWW, test_loader_VWW = get_mvtec_loaders(
+        root='./data/mvtec_anomaly_detection', 
         category='bottle', 
         batch_size=32
     )
-
+    """
     model = ViT(**custom_config_CIFAR10)
     model.to(device)
-
-    trained_model_CIFAR10 = run_training(
-        train_loader = train_loader_CIFAR10, test_loader = test_loader_CIFAR10, model = model, num_epochs = 200, lr =  3e-4, weight_decay= 0.05
-    )
-
-    trained_model_VWW = run_training(
-        train_loader = train_loader_VWW, test_loader = test_loader_VWW, model = model, num_epochs = 200, lr =  2e-4, weight_decay= 0.05
-    )
-
-    torch.save(trained_model_CIFAR10.state_dict(), "pathsaver/vit_cifar10.pth")
-    torch.save(trained_model_VWW.state_dict(), "pathsaver/vit_cifar10.pth")
-    print("Models saved")
-
-
     
+    debug_single_batch(model, train_loader_CIFAR10, device)

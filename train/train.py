@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
 
 
 def train(model, train_loader, criterion, optimizer, device):
@@ -65,15 +66,21 @@ def evaluate(model, test_loader, criterion, device):
 
     return running_loss / len(test_loader), 100. * correct / total
 
-def run_training(train_loader, test_loader, model, num_epochs, lr ):
+def run_training(train_loader, test_loader, model, num_epochs, lr , weight_decay ):
     device = torch.device("cuda" if torch.cuda.is_available else "cpu")
 
     model = model.to(device)
     criterion = nn.CrossEntropyLoss()
 
-    optimizer = optim.AdamW(model.parameters(), lr = lr, weight_decay= 1e-2)
+    optimizer = optim.AdamW(model.parameters(), lr = lr, weight_decay= weight_decay)
 
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max = num_epochs)
+    warmup_epochs = 5
+    max_epochs = 100
+
+    scheduler_warmup = LinearLR(optimizer, start_factor=0.01, end_factor=1.0, total_iters=warmup_epochs)
+    scheduler_cosine = CosineAnnealingLR(optimizer, T_max=max_epochs - warmup_epochs)
+    scheduler = SequentialLR(optimizer, schedulers=[scheduler_warmup, scheduler_cosine], milestones=[warmup_epochs])        
+    #scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max = num_epochs)
 
     for epoch in range(num_epochs):
         train_loss, train_acc = train(model, train_loader, criterion, optimizer, device)

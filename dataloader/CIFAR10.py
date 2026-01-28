@@ -2,7 +2,7 @@ import torchvision
 from torchvision import transforms
 from torch.utils.data import DataLoader
 
-def get_loaders(batch_size=128, num_workers=2):
+def get_CIFAR10_loaders(batch_size=128, num_workers=2):
 
     input_size = 32
     

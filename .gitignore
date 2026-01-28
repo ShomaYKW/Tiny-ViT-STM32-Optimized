@@ -9,7 +9,7 @@ __pycache__/
 venv/
 env/
 
-# Datasets (CRITICAL: Do not upload these)
+# Datasets 
 data/
 *.pth
 *.pt
