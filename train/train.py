@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
+import copy
 from utls.plots import plot_training_history
 
 def train(model, train_loader, criterion, optimizer, device):
@@ -91,6 +92,9 @@ def run_training(train_loader, test_loader, model, num_epochs, lr , weight_decay
     train_loss_history = []
     test_loss_history = []   
 
+    best_acc = 0.0
+    best_model_wts = copy.deepcopy(model.state_dict())
+
 
     for epoch in range(num_epochs):
         train_loss, train_acc = train(model, train_loader, criterion, optimizer, device)
@@ -102,12 +106,21 @@ def run_training(train_loader, test_loader, model, num_epochs, lr , weight_decay
         test_acc_history.append(test_acc)
         train_loss_history.append(train_loss)
         test_loss_history.append(test_loss)
+
+        if test_acc > best_acc:
+            best_acc = test_acc
+            best_model_wts = copy.deepcopy(model.state_dict())
+            print(f"new best model saved with accuracy: {best_acc:.2f}%")
           
         print(f"Epoch: {epoch+1}/{num_epochs} | "
               f"Train Loss: {train_loss:.4f} | Train Acc: {train_acc:.2f}% | "
               f"Test Acc: {test_acc:.2f}%")
+
+    print(f"\nBest Test Acc after {num_epochs} training: {best_acc:.2f}%")
+    model.load_state_dict(best_model_wts)        
     
     plot_training_history(train_acc_history, test_acc_history, train_loss_history, test_loss_history)
+    
     return model
 
 def run_training_MVTec(train_loader, test_loader, model, num_epochs, lr, weight_decay):

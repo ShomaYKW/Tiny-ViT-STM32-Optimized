@@ -1,48 +1,138 @@
 import torch
-
-from train.train import run_training
-from dataloader.CIFAR10 import get_CIFAR10_loaders
-from dataloader.VWW import get_mvtec_loaders
+import os
+import copy
 from model.model import ViT
-from debug.debug import debug_single_batch
+from dataloader.CIFAR10 import get_CIFAR10_loaders
+from dataloader.MVTec import get_mvtec_loaders
+from dataloader.VWW import get_vww_loaders
+from dataloader.TinyImgeNet import get_TinyImageNet_loaders
+from train.train import run_training, run_training_MVTec
+from train.inference import run_inference
 
-custom_config_CIFAR10 = {
+
+def CIFAR10_flow(device):
+
+    print(f"using device for CIFAR10 process: {device}")
+
+    custom_config_CIFAR10 = {
     "img_size" : 32,
     "in_chans" : 3,
     "patch_size" : 4,
-    "embed_dim": 384,
+    "embed_dim": 64,
     "depth": 6,
-    "n_heads":6,
+    "n_heads":4,
     "qkv_bias": True,
-    "mlp_ratio": 4
+    "mlp_ratio": 2
     }
 
-costom_config_MVTec = {
-    "img_size": 224,     
-    "in_chans": 3,
-    "patch_size": 16,
-    "n_classes": 2,     
-    "embed_dim": 384,
-    "depth": 6,
-    "n_heads": 6,
-    "qkv_bias": True,
-    "mlp_ratio": 4
-}
-
-
-if __name__=="__main__":
-    device = torch.device("cuda" if torch.cuda.is_available else "cpu")
-    print(f"using: {device}")
-
+    CIFAR10_Trained_Path = "pathsaver/vit_cifar10.pth"
     train_loader_CIFAR10, test_loader_CIFAR10 = get_CIFAR10_loaders(batch_size=128)
 
-    """train_loader_VWW, test_loader_VWW = get_mvtec_loaders(
+    base_model_CIFAR10 = ViT(**custom_config_CIFAR10)
+    base_model_CIFAR10.to(device)
+    print("loading ViT trained on CIFAR10")
+    state_dict = torch.load(CIFAR10_Trained_Path, map_location=device)
+    base_model_CIFAR10.load_state_dict(state_dict)
+    print("Base model loaded, now running test inference")
+    base_model_CIFAR10.eval()
+    run_inference(test_loader = test_loader_CIFAR10, model = base_model_CIFAR10, num_epoch = 1, device = device)
+
+    ("now pruning the model")
+    
+
+
+
+
+
+def MVTec_flow(device):
+
+    print(f"using: {device}")
+
+    custom_config_MVTec = {
+    "img_size": 224,      
+    "patch_size": 16,     
+    "n_classes": 2,     
+    "embed_dim": 64,     
+    "depth": 6,          
+    "n_heads": 4,
+    "qkv_bias": True,
+    "mlp_ratio": 2        
+    }
+
+    MVTec_Trained_Path = "pathsaver/vit_MVTec.pth"  
+    train_loader_MVTec, test_loader_MVTec = get_mvtec_loaders(
         root='./data/mvtec_anomaly_detection', 
         category='bottle', 
         batch_size=32
     )
-    """
-    model = ViT(**custom_config_CIFAR10)
-    model.to(device)
+
+
+    print("now loading MVTec")
+    base_model_MVTec = ViT(**custom_config_MVTec)
+    print("loading ViT trained on MVTec")
+    state_dict = torch.load(MVTec_Trained_Path, map_location=device)
+    base_model_MVTec.load_state_dict(state_dict)
+    print("Base model loaded, now running test inference")
+    run_inference(test_loader = test_loader_MVTec, model = base_model_MVTec, num_epoch = 10, device = device)
+
+
+
+
     
-    debug_single_batch(model, train_loader_CIFAR10, device)
+
+def VWW_flow():
+
+    print(f"using: {device}")
+
+    custom_config_VWW = {
+    "img_size": 96,       
+    "in_chans": 3,
+    "patch_size": 12,    
+    "n_classes": 2,
+    "embed_dim": 48,      
+    "depth": 4,           
+    "n_heads": 3,         
+    "qkv_bias": False,    
+    "mlp_ratio": 2
+    }
+
+
+def TinyImageNet_flow():
+    custom_config_TinyImageNet = {
+    "img_size": 64,       
+    "in_chans": 3,
+    "patch_size": 8,
+    "n_classes": 10,    
+    "embed_dim": 64,    
+    "depth": 8,           
+    "n_heads": 4,        
+    "qkv_bias": True,
+    "mlp_ratio": 2  
+    }      
+    
+    TinyImageNet_Trained_Path = "pathsaver/vit_tinyimagenet.pth"
+    train_loader_TinyImageNet, test_loader_TinyImageNet = get_TinyImageNet_loaders(batch_size=128, num_classes=10)
+
+    base_model_TinyImageNet = ViT(**custom_config_TinyImageNet)
+    base_model_TinyImageNet.to(device)
+    print("loading ViT trained on TinyImageNet")
+    state_dict = torch.load(TinyImageNet_Trained_Path, map_location=device)
+    base_model_TinyImageNet.load_state_dict(state_dict)
+    print("Base model loaded, now running test inference")
+    base_model_TinyImageNet.eval()
+    run_inference(test_loader = test_loader_TinyImageNet, model = base_model_TinyImageNet, num_epoch = 1, device = device)
+
+    ("now pruning the model")
+
+
+    
+
+if __name__ =="__main__":
+
+    device = torch.device("cuda" if torch.cuda.is_available else "cpu")
+    print(f"using: {device}")
+
+    CIFAR10_flow(device)
+
+    
+    

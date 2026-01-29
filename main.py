@@ -1,10 +1,15 @@
 import torch
 
-from train.train import run_training, run_training_MVTec
+from model.model import ViT
+from model.pretrained_model import get_vit_tiny_trained
+
 from dataloader.CIFAR10 import get_CIFAR10_loaders
 from dataloader.MVTec import get_mvtec_loaders
 from dataloader.VWW import get_vww_loaders
-from model.model import ViT
+from dataloader.TinyImgeNet import get_TinyImageNet_loaders
+
+from train.train import run_training, run_training_MVTec
+from train.inference import run_inference
 
 
 custom_config_CIFAR10 = {
@@ -41,6 +46,17 @@ custom_config_VWW = {
     "mlp_ratio": 2
 }
 
+custom_config_TinyImageNet = {
+    "img_size": 64,       
+    "in_chans": 3,
+    "patch_size": 8,     
+    "n_classes": 10,     
+    "embed_dim": 64,      
+    "depth": 8,           
+    "n_heads": 4,        
+    "qkv_bias": True,
+    "mlp_ratio": 2       
+}
 
 
 
@@ -60,13 +76,19 @@ if __name__ =="__main__":
         )
     #train_loader_VWW, test_loader_VWW = get_vww_loaders()
 
+    train_loader_TinyImageNet, test_loader_TinyImageNet = get_TinyImageNet_loaders(batch_size=128, num_classes=10)
+
     #get the base model 
+    pretrained_tiny_model = get_vit_tiny_trained()
+    pretrained_tiny_model.to(device)
     base_model_CIFAR10 = ViT(**custom_config_CIFAR10)
     base_model_CIFAR10.to(device)
     base_model_MVTec = ViT(**custom_config_MVTec)
     base_model_MVTec.to(device)
     base_model_VWW = ViT(**custom_config_VWW)
     base_model_VWW.to(device)
+    base_model_TinyImageNet = ViT(**custom_config_TinyImageNet)
+    base_model_TinyImageNet.to(device)
 
     """
     print("now training on CIFAR10")
@@ -76,13 +98,24 @@ if __name__ =="__main__":
     torch.save(trained_model_CIFAR10.state_dict(), "pathsaver/vit_cifar10.pth")
     print("Models saved")
     """
+
+    """
     print("now training on MVTec")
     trained_model_MVTec = run_training_MVTec(
         train_loader = train_loader_MVtec_bottle, test_loader = test_loader_MVTec_bottle, model = base_model_MVTec, num_epochs = 200, lr =  1e-4, weight_decay= 1e-4
     )
     torch.save(trained_model_MVTec.state_dict(), "pathsaver/vit_MVTec.pth")
     print("Models saved")
+    """
     
+    print("now training on TinyImagwNet")
+    trained_model_TinyImageNet = run_training(
+        train_loader = train_loader_TinyImageNet, test_loader = test_loader_TinyImageNet, model = base_model_TinyImageNet, num_epochs = 200, lr =  1e-4, weight_decay= 1e-4
+    )
+    torch.save(trained_model_TinyImageNet.state_dict(), "pathsaver/vit_tinyimagenet.pth")
+    print("Models saved")
+
+
 
 
     
