@@ -1,58 +1,57 @@
 import os
 from PIL import Image
-from torch.utils.data import Dataset, DataLoader, random_split
+from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 
-class MVTecSupervisedDataset(Dataset):
-    """
-    combine train and test dataset for better training for the model 
-    """
-
-    def __init__(self, root_dir, category, transform = None):
-
-        #transform to be applied on sample
+class VWWDataset(Dataset):
+    
+    def __init__(self, root_dir, split='train', transform=None):
+        
         self.transform = transform
         self.image_paths = []
-        self.labels = []
+        self.labels = []  #
 
-        #define category path
-        category_dir = os.path.join(root_dir, category)
-
-        #check for non-existant 
-        if not os.path.exists(category_dir):
-            raise FileNotFoundError
+        # Define the specific split directory 
+        split_dir = os.path.join(root_dir, split)
         
-        #collect both train and test dataset for a supervised split
-        for split in ['train', 'test']:
-            split_path = os.path.join(category_dir, split)
+        if not os.path.exists(split_dir):
+            raise FileNotFoundError(f"Split folder not found: {split_dir}")
 
-            if not os.path.exists:
+        valid_classes = sorted(os.listdir(split_dir))
+        
+        print(f"Found classes for {split}: {valid_classes}")
+
+        for class_name in valid_classes:
+            class_path = os.path.join(split_dir, class_name)
+            if not os.path.isdir(class_path):
                 continue
 
-            #loop through the sub folders
-            for subfolder in os.listdir(split_path):
-                subfolder_path = os.path.join(split_path, subfolder)
-                if not os.path.isdir(subfolder_path):
-                    continue
+            
+            if class_name.lower() in ['person', '1', 'positive']:
+                label = 1
+            else:
+                label = 0 # background
 
-                #labeling
-                # if the folder name is good , label 1, else 0
-                label = 0 if subfolder == 'good' else 0
+            # Collect images
+            for img_name in os.listdir(class_path):
+                if img_name.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp')):
+                    self.image_paths.append(os.path.join(class_path, img_name))
+                    self.labels.append(label)
 
-                for img_name in os.listdir(subfolder_path):
-                    if img_name.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tif', '.tiff')):
-                        self.image_paths.append(os.path.join(subfolder_path, img_name))
-                        self.labels.append(label)
-
-#get the length 
     def __len__(self):
         return len(self.image_paths)
 
-#get the image and convert to RGB
     def __getitem__(self, idx):
         img_path = self.image_paths[idx]
-        # Open image and convert to RGB 
-        image = Image.open(img_path).convert('RGB')
+        
+        # Open image and convert to RGB
+        try:
+            image = Image.open(img_path).convert('RGB')
+        except Exception as e:
+            print(f"Error loading image {img_path}: {e}")
+            # Return a dummy image or handle error appropriately in real training
+            return self.__getitem__((idx + 1) % len(self)) 
+
         label = self.labels[idx]
 
         if self.transform:
@@ -60,39 +59,43 @@ class MVTecSupervisedDataset(Dataset):
 
         return image, label
 
-def get_mvtec_loaders(root='./data/mvtec_anomaly_detection', category='bottle', batch_size=32, img_size=224, split_ratio=0.8):
+def get_vww_loaders(root='./data/visual_wake_words', batch_size=32, img_size=96):
     """
-    Create Train and Test loaders for a specific MVTec category.
+    Create Train and Test loaders for VWW.
     """
     
-    # 1. Define Transforms
-    # MVTec requires high resolution (224) to see small defects.
-    # use ImageNet normalization stats as standard practice.
-    transform = transforms.Compose([
+    # Define Transforms
+    transform_train = transforms.Compose([
+        transforms.Resize((img_size, img_size)),
+        transforms.RandomHorizontalFlip(), 
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
+
+    transform_test = transforms.Compose([
         transforms.Resize((img_size, img_size)),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
-    # 2. Load the full dataset (Train + Test combined)
-    full_dataset = MVTecSupervisedDataset(root_dir=root, category=category, transform=transform)
+    # Load Datasets
+    train_dataset = VWWDataset(root_dir=root, split='train', transform=transform_train)
+    
+    if os.path.exists(os.path.join(root, 'val')):
+        test_split_name = 'val'
+    else:
+        test_split_name = 'test'
+        
+    test_dataset = VWWDataset(root_dir=root, split=test_split_name, transform=transform_test)
     
     # Check if data was found
-    if len(full_dataset) == 0:
-        raise RuntimeError(f"No images found for category '{category}' in '{root}'. Check paths.")
+    if len(train_dataset) == 0:
+        raise RuntimeError(f"No images found in '{root}/train'. Check paths.")
 
-    # 3. Randomly Split into Train and Validation
-    train_size = int(split_ratio * len(full_dataset))
-    test_size = len(full_dataset) - train_size
-    
-    train_dataset, test_dataset = random_split(full_dataset, [train_size, test_size])
+    print(f"Loaded VWW: {len(train_dataset)} Training samples, {len(test_dataset)} Test samples.")
 
-    print(f"Loaded MVTec '{category}': {train_size} Training samples, {test_size} Test samples.")
-
-    # 4. Create DataLoaders
+    # Create DataLoaders
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2, pin_memory=True)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=True)
 
     return train_loader, test_loader
-                      
-

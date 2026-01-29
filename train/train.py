@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
-
+from utls.plots import plot_training_history
 
 def train(model, train_loader, criterion, optimizer, device):
 
@@ -25,6 +25,10 @@ def train(model, train_loader, criterion, optimizer, device):
         loss = criterion(outputs, labels)
         #backward pass
         loss.backward()
+
+        #specifically for MVTec since it showed unexpected bumps
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        
         #update the weight
         optimizer.step()
 
@@ -82,16 +86,72 @@ def run_training(train_loader, test_loader, model, num_epochs, lr , weight_decay
     scheduler = SequentialLR(optimizer, schedulers=[scheduler_warmup, scheduler_cosine], milestones=[warmup_epochs])        
     #scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max = num_epochs)
 
+    train_acc_history = []
+    test_acc_history = []
+    train_loss_history = []
+    test_loss_history = []   
+
+
     for epoch in range(num_epochs):
         train_loss, train_acc = train(model, train_loader, criterion, optimizer, device)
         test_loss, test_acc = evaluate(model, test_loader, criterion, device)
         
         scheduler.step()
+
+        train_acc_history.append(train_acc)
+        test_acc_history.append(test_acc)
+        train_loss_history.append(train_loss)
+        test_loss_history.append(test_loss)
           
         print(f"Epoch: {epoch+1}/{num_epochs} | "
               f"Train Loss: {train_loss:.4f} | Train Acc: {train_acc:.2f}% | "
               f"Test Acc: {test_acc:.2f}%")
     
+    plot_training_history(train_acc_history, test_acc_history, train_loss_history, test_loss_history)
+    return model
+
+def run_training_MVTec(train_loader, test_loader, model, num_epochs, lr, weight_decay):
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Training on: {device}")
+
+    model = model.to(device)
+
+    norm_weight = 1.0
+    defect_weight = 3.5  
+    class_weights = torch.tensor([norm_weight, defect_weight]).to(device)
+    criterion = nn.CrossEntropyLoss(weight=class_weights)
+
+    optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
+
+    warmup_epochs = 5
+    t_max = max(1, num_epochs - warmup_epochs) 
+
+    scheduler_warmup = LinearLR(optimizer, start_factor=0.01, end_factor=1.0, total_iters=warmup_epochs)
+    scheduler_cosine = CosineAnnealingLR(optimizer, T_max=t_max)
+    scheduler = SequentialLR(optimizer, schedulers=[scheduler_warmup, scheduler_cosine], milestones=[warmup_epochs])        
+
+    train_acc_history = []
+    test_acc_history = []
+    train_loss_history = []
+    test_loss_history = []   
+
+    for epoch in range(num_epochs):
+        train_loss, train_acc = train(model, train_loader, criterion, optimizer, device)
+        test_loss, test_acc = evaluate(model, test_loader, criterion, device)
+        
+        scheduler.step()
+
+        train_acc_history.append(train_acc)
+        test_acc_history.append(test_acc)
+        train_loss_history.append(train_loss)
+        test_loss_history.append(test_loss)
+          
+        print(f"Epoch: {epoch+1}/{num_epochs} | "
+              f"Train Loss: {train_loss:.4f} | Train Acc: {train_acc:.2f}% | "
+              f"Test Acc: {test_acc:.2f}%")
+    
+    plot_training_history(train_acc_history, test_acc_history, train_loss_history, test_loss_history)
     return model
 
         

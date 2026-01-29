@@ -1,7 +1,7 @@
 import torch 
 import torch.nn as nn
 
-class PathEmbed(nn.Module):
+class PatchEmbed(nn.Module):
     """
     split image into patches and then embed them
     img_size: size of the imaghe
@@ -138,7 +138,7 @@ class ViT(nn.Module):
     ):
         super().__init__()
 
-        self.patch_embed = PathEmbed(
+        self.patch_embed = PatchEmbed(
             img_size=img_size,
             patch_size=patch_size,
             in_chans=in_chans,
