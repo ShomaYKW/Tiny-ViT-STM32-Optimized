@@ -1,121 +1,88 @@
+import torch 
+import torch.nn as nn
+import os
+
+from functools import partial
 import torch
+import torch.nn as nn
+from timm.models.vision_transformer import DropPath, Mlp, Attention as BaseAttn
 
-from model.model import ViT
-from model.pretrained_model import get_vit_tiny_trained
+from model.pretrained_light import VisionTransformer
+from conversion.conversion import conversion_pipeline
+from evaluate.evaluate import get_model_info
+#from model.pretrained_light import 
 
-from dataloader.CIFAR10 import get_CIFAR10_loaders
-from dataloader.MVTec import get_mvtec_loaders
-from dataloader.VWW import get_vww_loaders
-from dataloader.TinyImgeNet import get_TinyImageNet_loaders
-
-from train.train import run_training, run_training_MVTec
-from train.inference import run_inference
-
-
-custom_config_CIFAR10 = {
-    "img_size" : 32,
-    "in_chans" : 3,
-    "patch_size" : 4,
-    "embed_dim": 64,
-    "depth": 6,
-    "n_heads":4,
-    "qkv_bias": True,
-    "mlp_ratio": 2
-    }
-
-custom_config_MVTec = {
-    "img_size": 224,      
-    "patch_size": 16,     
-    "n_classes": 2,     
-    "embed_dim": 64,     
-    "depth": 6,          
-    "n_heads": 4,
-    "qkv_bias": True,
-    "mlp_ratio": 2        
-}
-
-custom_config_VWW = {
-    "img_size": 96,       
-    "in_chans": 3,
-    "patch_size": 12,    
-    "n_classes": 2,
-    "embed_dim": 48,      
-    "depth": 4,           
-    "n_heads": 3,         
-    "qkv_bias": False,    
-    "mlp_ratio": 2
-}
-
-custom_config_TinyImageNet = {
-    "img_size": 64,       
-    "in_chans": 3,
-    "patch_size": 8,     
-    "n_classes": 10,     
-    "embed_dim": 64,      
-    "depth": 8,           
-    "n_heads": 4,        
-    "qkv_bias": True,
-    "mlp_ratio": 2       
-}
-
-
-
-if __name__ =="__main__":
-
-    device = torch.device("cuda" if torch.cuda.is_available else "cpu")
-    print(f"using: {device}")
-
-    #get the dataset
-    train_loader_CIFAR10, test_loader_CIFAR10 = get_CIFAR10_loaders(batch_size=128)
-    train_loader_MVtec_bottle, test_loader_MVTec_bottle = get_mvtec_loaders(
-        root='/home/sxy901/ViT_P2/data/mvtec_anomaly_detection',
-        category='bottle',  
-        batch_size=32, 
-        img_size=224, 
-        split_ratio=0.8
-        )
-    #train_loader_VWW, test_loader_VWW = get_vww_loaders()
-
-    train_loader_TinyImageNet, test_loader_TinyImageNet = get_TinyImageNet_loaders(batch_size=128, num_classes=10)
-
-    #get the base model 
-    pretrained_tiny_model = get_vit_tiny_trained()
-    pretrained_tiny_model.to(device)
-    base_model_CIFAR10 = ViT(**custom_config_CIFAR10)
-    base_model_CIFAR10.to(device)
-    base_model_MVTec = ViT(**custom_config_MVTec)
-    base_model_MVTec.to(device)
-    base_model_VWW = ViT(**custom_config_VWW)
-    base_model_VWW.to(device)
-    base_model_TinyImageNet = ViT(**custom_config_TinyImageNet)
-    base_model_TinyImageNet.to(device)
-
-    """
-    print("now training on CIFAR10")
-    trained_model_CIFAR10 = run_training(
-        train_loader = train_loader_CIFAR10, test_loader = test_loader_CIFAR10, model = base_model_CIFAR10, num_epochs = 200, lr =  3e-4, weight_decay= 0.05
+def vit_pico_patch32(pretrained=False, **kwargs):
+    model = VisionTransformer(
+        patch_size=32,       
+        embed_dim=96,        
+        depth=4,          
+        num_heads=3 ,        
+        mlp_ratio=2,
+        qkv_bias=True,  
+        norm_layer=partial(nn.LayerNorm, eps=1e-6),
+        **kwargs
     )
-    torch.save(trained_model_CIFAR10.state_dict(), "pathsaver/vit_cifar10.pth")
-    print("Models saved")
-    """
+    return model 
 
-    """
-    print("now training on MVTec")
-    trained_model_MVTec = run_training_MVTec(
-        train_loader = train_loader_MVtec_bottle, test_loader = test_loader_MVTec_bottle, model = base_model_MVTec, num_epochs = 200, lr =  1e-4, weight_decay= 1e-4
+def vit_pico_patch16(pretrained=False, **kwargs):
+    model = VisionTransformer(
+        patch_size=16,       
+        embed_dim=64,        
+        depth=4,          
+        num_heads=4,        
+        mlp_ratio=2,
+        qkv_bias=True,  
+        norm_layer=partial(nn.LayerNorm, eps=1e-6),
+        **kwargs
     )
-    torch.save(trained_model_MVTec.state_dict(), "pathsaver/vit_MVTec.pth")
-    print("Models saved")
-    """
-    
-    print("now training on TinyImagwNet")
-    trained_model_TinyImageNet = run_training(
-        train_loader = train_loader_TinyImageNet, test_loader = test_loader_TinyImageNet, model = base_model_TinyImageNet, num_epochs = 200, lr =  1e-4, weight_decay= 1e-4
+    return model 
+
+
+def vit_nano_patch16(pretrained=False, **kwargs):
+    model = VisionTransformer(
+        patch_size=16,
+        embed_dim=64,      
+        depth=6,            
+        num_heads=2,        
+        mlp_ratio=2,        
+        qkv_bias=True,
+        norm_layer=partial(nn.LayerNorm, eps=1e-6),
+        **kwargs
     )
-    torch.save(trained_model_TinyImageNet.state_dict(), "pathsaver/vit_tinyimagenet.pth")
-    print("Models saved")
+    return model 
+
+
+if __name__ == "__main__":
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+
+    input_shape = [1,3,224,224]
+
+    """
+    vit_pico_patch_32 = vit_pico_patch32(pretrained=False)
+    get_model_info(vit_pico_patch_32, input_shape)
+    ONNX_PATH = "checkpoints/vit_pico_patch_32.onnx"
+    TF_PATH = "checkpoints/vit_pico_patch_32"
+    TFLITE_PATH = "saved_model/vit_pico_patch_32.tflite"
+    conversion_pipeline(ONNX_PATH, TF_PATH, TFLITE_PATH, vit_pico_patch_32 , input_shape, device)
+    """
+
+    vit_pico_patch_16_P2 = vit_pico_patch16(pretrained=False)
+    get_model_info(vit_pico_patch_16_P2, input_shape)
+    ONNX_PATH = "checkpoints/vit_pico_patch_16_P2.onnx"
+    TF_PATH = "checkpoints/vit_pico_patch_16_P2"
+    TFLITE_PATH = "saved_model/vit_pico_patch_16_P2.tflite"
+    conversion_pipeline(ONNX_PATH, TF_PATH, TFLITE_PATH, vit_pico_patch_16_P2 , input_shape, device)
+
+    vit_nano_patch_16 = vit_nano_patch16(pretrained=False)
+    get_model_info(vit_nano_patch_16, input_shape)
+    ONNX_PATH = "checkpoints/vit_nano_patch_16.onnx"
+    TF_PATH = "checkpoints/vit_nano_patch_16"
+    TFLITE_PATH = "saved_model/vit_nano_patch_16.tflite"
+    conversion_pipeline(ONNX_PATH, TF_PATH, TFLITE_PATH, vit_nano_patch_16 , input_shape, device)
 
 
 
 
-    

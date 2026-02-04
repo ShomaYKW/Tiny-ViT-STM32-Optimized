@@ -30,6 +30,16 @@ def CIFAR10_flow(device):
 
     base_model_CIFAR10 = ViT(**custom_config_CIFAR10)
     base_model_CIFAR10.to(device)
+
+    """
+    print("now training on CIFAR10")
+    trained_model_CIFAR10 = run_training(
+        train_loader = train_loader_CIFAR10, test_loader = test_loader_CIFAR10, model = base_model_CIFAR10, num_epochs = 200, lr =  3e-4, weight_decay= 0.05
+    )
+    torch.save(trained_model_CIFAR10.state_dict(), "pathsaver/vit_cifar10.pth")
+    print("Models saved")
+    """
+
     print("loading ViT trained on CIFAR10")
     state_dict = torch.load(CIFAR10_Trained_Path, map_location=device)
     base_model_CIFAR10.load_state_dict(state_dict)
@@ -69,6 +79,14 @@ def MVTec_flow(device):
 
     print("now loading MVTec")
     base_model_MVTec = ViT(**custom_config_MVTec)
+    """
+    print("now training on MVTec")
+    trained_model_MVTec = run_training_MVTec(
+        train_loader = train_loader_MVtec_bottle, test_loader = test_loader_MVTec_bottle, model = base_model_MVTec, num_epochs = 200, lr =  1e-4, weight_decay= 1e-4
+    )
+    torch.save(trained_model_MVTec.state_dict(), "pathsaver/vit_MVTec.pth")
+    print("Models saved")
+    """
     print("loading ViT trained on MVTec")
     state_dict = torch.load(MVTec_Trained_Path, map_location=device)
     base_model_MVTec.load_state_dict(state_dict)
@@ -115,6 +133,14 @@ def TinyImageNet_flow():
 
     base_model_TinyImageNet = ViT(**custom_config_TinyImageNet)
     base_model_TinyImageNet.to(device)
+
+    print("now training on TinyImagwNet")
+    trained_model_TinyImageNet = run_training(
+        train_loader = train_loader_TinyImageNet, test_loader = test_loader_TinyImageNet, model = base_model_TinyImageNet, num_epochs = 200, lr =  1e-4, weight_decay= 1e-4
+    )
+    torch.save(trained_model_TinyImageNet.state_dict(), "pathsaver/vit_tinyimagenet.pth")
+    print("Models saved")
+
     print("loading ViT trained on TinyImageNet")
     state_dict = torch.load(TinyImageNet_Trained_Path, map_location=device)
     base_model_TinyImageNet.load_state_dict(state_dict)
